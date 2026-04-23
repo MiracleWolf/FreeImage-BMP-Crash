@@ -178,16 +178,11 @@ FreeImaged!FreeImage_LoadU
 
 The immediate impact is denial of service through a controlled crash during BMP parsing.
 
-Because the issue is an out-of-bounds write caused by attacker-controlled image metadata, the vulnerability also represents a memory corruption primitive. Depending on allocator behavior, surrounding heap layout, and target application integration, more serious impacts may be possible.
-
-At minimum, the issue should be treated as a security-relevant memory corruption bug in a file parser.
-
+Because the issue is an out-of-bounds write caused by attacker-controlled image metadata, the vulnerability also represents a memory corruption primitive. Depending on allocator behavior, surrounding heap layout, and target application integration, more serious impacts may be possible,such as RCE.
 ## 6. Why the Bug Happens
 
 This bug is caused by inconsistent handling of signed image dimensions across the BMP loading pipeline.
-
 - `LoadWindowsBMP` uses the raw signed `biWidth` to compute `pitch`.
 - `LoadPixelData` consumes the resulting wrapped unsigned `pitch`.
 - `FreeImage_AllocateBitmap` separately normalizes dimensions using `abs(width)` / `abs(height)`.
-
 This means the allocated image buffer size and the subsequent row-read size are derived under different assumptions, making memory corruption possible.
