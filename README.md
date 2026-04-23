@@ -91,19 +91,7 @@ This issue is not the same as previously disclosed FreeImage vulnerabilities aff
 - **Library build**: FreeImage 3.18.0
 - **Target**: BMP loader (`PluginBMP.cpp`)
 
-### 3.2 Trigger condition
-
-The crafted BMP sample contains a malicious `BITMAPINFOHEADER` with:
-
-- `biSize = 0x28`
-- `biWidth = -255`
-- `biHeight = -3`
-- `biBitCount = 24`
-- `biCompression = BI_RGB`
-
-These values cause pitch wraparound during loading.
-
-### 3.3 Example debugger evidence
+### 3.2 Example debugger evidence
 
 The header fields observed in WinDbg:
 
