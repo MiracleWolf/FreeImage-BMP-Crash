@@ -80,11 +80,8 @@ This causes an oversized read into a much smaller heap-backed image buffer and r
 ### 2.3 Why this is distinct from prior FreeImage issues
 
 This issue is not the same as previously disclosed FreeImage vulnerabilities affecting other paths.
-
-- It is **not** the TGA `loadRLE()` use-after-free issue.
 - It is **not** the BMP `LoadPixelDataRLE4` issue.
 - It is **not** a direct `FreeImage_AllocateBitmap` excessive-allocation issue.
-
 A key observation is that `FreeImage_AllocateBitmap` normalizes dimensions using `abs(width)` and `abs(height)`, meaning allocation proceeds using positive dimensions, while the BMP loading logic still uses the original signed header values to compute `pitch`. This mismatch between allocation semantics and load semantics is central to this bug.
 
 ## 3. Proof of Concept (PoC)
