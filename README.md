@@ -1,7 +1,4 @@
 # FreeImage-BMP-Crash
-PoC, crash samples, and root-cause analysis for a FreeImage 3.18.0 BMP out-of-bounds write caused by negative biWidth and pitch wraparound.
-
-# FreeImage BMP Crash
 
 Crash samples and analysis for a crafted BMP parsing vulnerability in FreeImage.
 
@@ -80,9 +77,10 @@ This causes an oversized read into a much smaller heap-backed image buffer and r
 ### 2.3 Why this is distinct from prior FreeImage issues
 
 This issue is not the same as previously disclosed FreeImage vulnerabilities affecting other paths.
+
 - It is **not** the BMP `LoadPixelDataRLE4` issue.
 - It is **not** a direct `FreeImage_AllocateBitmap` excessive-allocation issue.
-A key observation is that `FreeImage_AllocateBitmap` normalizes dimensions using `abs(width)` and `abs(height)`, meaning allocation proceeds using positive dimensions, while the BMP loading logic still uses the original signed header values to compute `pitch`. This mismatch between allocation semantics and load semantics is central to this bug.
+  A key observation is that `FreeImage_AllocateBitmap` normalizes dimensions using `abs(width)` and `abs(height)`, meaning allocation proceeds using positive dimensions, while the BMP loading logic still uses the original signed header values to compute `pitch`. This mismatch between allocation semantics and load semantics is central to this bug.
 
 ## 3. Proof of Concept (PoC)
 
@@ -179,14 +177,18 @@ FreeImaged!FreeImage_LoadU
 The immediate impact is denial of service through a controlled crash during BMP parsing.
 
 Because the issue is an out-of-bounds write caused by attacker-controlled image metadata, the vulnerability also represents a memory corruption primitive. Depending on allocator behavior, surrounding heap layout, and target application integration, more serious impacts may be possible,such as RCE.
+
 ## 6. Why the Bug Happens
 
 This bug is caused by inconsistent handling of signed image dimensions across the BMP loading pipeline.
+
 - `LoadWindowsBMP` uses the raw signed `biWidth` to compute `pitch`.
 - `LoadPixelData` consumes the resulting wrapped unsigned `pitch`.
 - `FreeImage_AllocateBitmap` separately normalizes dimensions using `abs(width)` / `abs(height)`.
-This means the allocated image buffer size and the subsequent row-read size are derived under different assumptions, making memory corruption possible.
+  This means the allocated image buffer size and the subsequent row-read size are derived under different assumptions, making memory corruption possible.
+
 ## 7. details of windbg
+
 g
 ModLoad: 10000000 107df000   C:\Users\Administrator\source\repos\Freeimage_test\Debug\FreeImaged.dll
 ModLoad: 77a80000 77ae9000   C:\WINDOWS\SysWOW64\WS2_32.dll
@@ -202,15 +204,17 @@ cs=0023  ss=002b  ds=002b  es=002b  fs=0053  gs=002b             efl=00010207
 FreeImaged!memcpy+0x4e:
 10429fee f3a4            rep movs byte ptr es:[edi],byte ptr [esi]
 
-
 !analyze -v
 Reloading current modules
 ..*** WARNING: Unable to verify checksum for C:\Users\Administrator\source\repos\Freeimage_test\Debug\FreeImaged.dll
 ...........
+
 *******************************************************************************
+
 *                                                                             *
-*                        Exception Analysis                                   *
+*                                                                             Exception Analysis                                   *
 *                                                                             *
+
 *******************************************************************************
 
 *** WARNING: Unable to verify checksum for Freeimage_test.exe
@@ -219,73 +223,73 @@ KEY_VALUES_STRING: 1
 
     Key  : AV.Type
     Value: Write
-
+    
     Key  : Analysis.CPU.mSec
     Value: 703
-
+    
     Key  : Analysis.Elapsed.mSec
     Value: 2420
-
+    
     Key  : Analysis.IO.Other.Mb
     Value: 0
-
+    
     Key  : Analysis.IO.Read.Mb
     Value: 1
-
+    
     Key  : Analysis.IO.Write.Mb
     Value: 0
-
+    
     Key  : Analysis.Init.CPU.mSec
     Value: 531
-
+    
     Key  : Analysis.Init.Elapsed.mSec
     Value: 78363
-
+    
     Key  : Analysis.Memory.CommitPeak.Mb
     Value: 69
-
+    
     Key  : Analysis.Version.DbgEng
     Value: 10.0.29547.1002
-
+    
     Key  : Analysis.Version.Description
     Value: 10.2602.27.2 x86fre
-
+    
     Key  : Analysis.Version.Ext
     Value: 1.2602.27.2
-
+    
     Key  : Failure.Bucket
     Value: INVALID_POINTER_WRITE_AVRF_c0000005_FreeImaged.dll!memcpy
-
+    
     Key  : Failure.Exception.Code
     Value: 0xc0000005
-
+    
     Key  : Failure.Exception.IP.Address
     Value: 0x10429fee
-
+    
     Key  : Failure.Exception.IP.Module
     Value: FreeImaged
-
+    
     Key  : Failure.Exception.IP.Offset
     Value: 0x429fee
-
+    
     Key  : Failure.Hash
     Value: {74238755-fb5e-bef2-03b3-df2a4e5fc2b9}
-
+    
     Key  : Failure.ProblemClass.Primary
     Value: INVALID_POINTER_WRITE
-
+    
     Key  : Faulting.IP.Type
     Value: Paged
-
+    
     Key  : Timeline.OS.Boot.DeltaSec
     Value: 590445
-
+    
     Key  : Timeline.Process.Start.DeltaSec
     Value: 78
-
+    
     Key  : WER.OS.Branch
     Value: ge_release
-
+    
     Key  : WER.OS.Version
     Value: 10.0.26100.1
 
@@ -382,7 +386,9 @@ Followup:     MachineOwner
 ---------
 
 0:000> kp
+
  # ChildEBP RetAddr      
+
 00 001af450 10430de1     FreeImaged!memcpy(unsigned char * dst = 0x06cd4cf0 "???", unsigned char * src = 0xffffffff "--- memory read error at address 0xffffffff ---", unsigned long count = 0x6cd006e)+0x4e [D:\a\_work\1\s\src\vctools\crt\vcruntime\src\string\i386\memcpy.asm @ 194] 
 01 001af47c 104455b5     FreeImaged!memcpy_s(void * _Destination = 0x06cd4cf0, unsigned int _DestinationSize = 0xffffffff, void * _Source = 0x06cd006e, unsigned int _SourceSize = 0xf8a)+0x101 [minkernel\crts\ucrt\inc\corecrt_memcpy_s.h @ 63] 
 02 001af508 104459e2     FreeImaged!_fread_nolock_s(void * buffer = 0x06cd4cf0, unsigned int buffer_size = 0xffffffff, unsigned int element_size = 0xfffffd04, unsigned int element_count = 1, struct _iobuf * public_stream = 0x06cc2fc0)+0x395 [minkernel\crts\ucrt\src\appcrt\stdio\fread.cpp @ 131] 
@@ -395,13 +401,12 @@ Followup:     MachineOwner
 09 001afbd0 10019c56     FreeImaged!FreeImage_LoadFromHandle(FREE_IMAGE_FORMAT fif = FIF_BMP (0n0), struct FreeImageIO * io = 0x001afcd0, void * handle = 0x06cc2fc0, int flags = 0n0)+0x88 [D:\FreeImage\Source\FreeImage\Plugin.cpp @ 388] 
 0a 001afce4 0041253f     FreeImaged!FreeImage_LoadU(FREE_IMAGE_FORMAT fif = FIF_BMP (0n0), wchar_t * filename = 0x05d50fe0 "id_000001_00", int flags = 0n0)+0x56 [D:\FreeImage\Source\FreeImage\Plugin.cpp @ 428] 
 0b 001afdd0 00412e13     Freeimage_test!FreeImage_test(struct HINSTANCE__ * hinstLib = 0x10000000, wchar_t * pathfile = 0x05d50fe0 "id_000001_00")+0x4f [C:\Users\Administrator\source\repos\Freeimage_test\main.cpp @ 159] 
-0c 001afee8 004137e3     Freeimage_test!main(int argc = 0n2, char ** argv = 0x05d4cf90)+0x383 [C:\Users\Administrator\source\repos\Freeimage_test\main.cpp @ 142] 
+0c 001afee8 004137e3     Freeimage_test!main(int argc = 0n2, char  argv = 0x05d4cf90)+0x383 [C:\Users\Administrator\source\repos\Freeimage_test\main.cpp @ 142] 
 0d 001aff08 00413637     Freeimage_test!invoke_main(void)+0x33 [D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 78] 
-0e 001aff64 004134cd     Freeimage_test!__scrt_common_main_seh(void)+0x157 [D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 288] 
-0f 001aff6c 00413868     Freeimage_test!__scrt_common_main(void)+0xd [D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 331] 
-10 001aff74 77205d49     Freeimage_test!mainCRTStartup(void * __formal = 0x00227000)+0x8 [D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_main.cpp @ 17] 
-11 001aff84 77e7d83b     KERNEL32!BaseThreadInitThunk+0x19
-12 001affdc 77e7d7c1     ntdll!__RtlUserThreadStart+0x2b
+0e 001aff64 004134cd     Freeimage_test!scrt_common_main_seh(void)+0x157 [D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 288] 
+0f 001aff6c 00413868     Freeimage_test!scrt_common_main(void)+0xd [D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 331] 
+10 001aff74 77205d49     Freeimage_test!mainCRTStartup(void * formal = 0x00227000)+0x8 
+12 001affdc 77e7d7c1     ntdll!RtlUserThreadStart+0x2b
 13 001affec 00000000     ntdll!_RtlUserThreadStart+0x1b
 
 
